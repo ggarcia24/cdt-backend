@@ -1,0 +1,85 @@
+service: cdt-backend-api
+
+frameworkVersion: "2"
+configValidationMode: "error"
+variablesResolutionMode: 20210326
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  stage: dev
+  region: us-east-1
+  tags:
+    project: consumer-driven-contract-testing
+  httpApi:
+    useProviderTags: true
+    shouldStartNameWithService: true
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:*"
+
+plugins:
+  - serverless-appsync-plugin
+
+custom:
+  serviceExportPrefix: backend-${self:provider.stage}
+  dynamoDbTableName:
+    Fn::ImportValue: ${self:custom.serviceExportPrefix}-TodoTableName
+  dynamoDbTableArn:
+    Fn::ImportValue: ${self:custom.serviceExportPrefix}-TodoTableArn
+  appSyncIamRole:
+    Fn::ImportValue: ${self:custom.serviceExportPrefix}-AppSyncIAMRoleArn
+  appSync: # appsync plugin configuration
+    name: ${self:service}-appsync-${self:provider.stage}
+    authenticationType: API_KEY # since we dont have user login for now
+    dataSources:
+      - type: AMAZON_DYNAMODB
+        name: PrimaryTable
+        description: "Primary Table"
+        config:
+          tableName: ${self:custom.dynamoDbTableName}
+          serviceRoleArn: ${self:custom.appSyncIamRole}
+    mappingTemplates:
+      - dataSource: PrimaryTable
+        type: Mutation
+        field: createTodo
+        request: "create_todo.vtl"
+        response: "common-item-response.vtl"
+      - dataSource: PrimaryTable
+        type: Mutation
+        field: updateTodo
+        request: "update_todo.vtl"
+        response: "common-item-response.vtl"
+      - dataSource: PrimaryTable
+        type: Mutation
+        field: deleteTodo
+        request: "delete_todo.vtl"
+        response: "common-item-response.vtl"
+      - dataSource: PrimaryTable
+        type: Query
+        field: getToDo
+        request: "get_todo.vtl"
+        response: "common-item-response.vtl"
+      - dataSource: PrimaryTable
+        type: Query
+        field: listToDos
+        request: "list_todos.vtl"
+        response: "common-items-response.vtl"
+# functions:
+#   graphql:
+#     handler: handler.graphqlHandler
+#     events:
+#       - http:
+#           path: graphql
+#           method: post
+#           cors: true

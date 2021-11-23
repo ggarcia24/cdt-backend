@@ -1,0 +1,122 @@
+service: cdt-backend-resources
+
+frameworkVersion: "2"
+configValidationMode: error
+variablesResolutionMode: 20210326
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+custom:
+  producer1TopicArn:
+    Fn::ImportValue: producer1-${self:provider.stage}-TopicArn
+  serviceExportPrefix: backend-${self:provider.stage}
+  todo:
+    tableName: Todo
+
+resources:
+  Resources:
+    TodoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema: # primary composite key
+          - AttributeName: id # partition key
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        TableName: ${self:custom.todo.tableName}
+        # TimeToLiveSpecification:
+        #   AttributeName: TimeToLive
+        #   Enabled: true
+    AppSyncDynamoDBServiceRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-dynamo-role-${self:provider.stage}
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - appsync.amazonaws.com
+                  - dynamodb.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: ${self:service}-dynamo-policy-${self:provider.stage}
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:DescribeTable
+                    - dynamodb:Query
+                    - dynamodb:Scan
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                    - dynamodb:DeleteItem
+                  Resource:
+                    - Fn::GetAtt: [TodoTable, Arn]
+    Producer1EventQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cdt-backend-producer1-event.fifo
+        ContentBasedDeduplication: true
+        FifoQueue: true
+    Producer1TopicSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint:
+          Fn::GetAtt: [Producer1EventQueue, Arn]
+        Protocol: sqs
+        TopicArn: ${self:custom.producer1TopicArn}
+  Outputs:
+    TodoTableName:
+      Description: Todo Table Name
+      Value:
+        Ref: TodoTable
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-TodoTableName
+    TodoTableArn:
+      Description: Todo Table Arn
+      Value:
+        Fn::GetAtt: [TodoTable, Arn]
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-TodoTableArn
+    AppSyncRoleName:
+      Description: AppSync IAM Role Name
+      Value:
+        Ref: AppSyncDynamoDBServiceRole
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-AppSyncIAMRoleName
+    AppSyncRoleArn:
+      Description: AppSync IAM Role Arn
+      Value:
+        Fn::GetAtt: [AppSyncDynamoDBServiceRole, Arn]
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-AppSyncIAMRoleArn
+    Producer1EventQueueUrl:
+      Description: Producer 1 Event Queue URL
+      Value:
+        Ref: Producer1EventQueue
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-Event1QueueUrl
+    Producer1EventQueueArn:
+      Description: Producer 1 Event Queue ARN
+      Value:
+        Fn::GetAtt: [Producer1EventQueue, Arn]
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-Event1QueueArn
+    Producer1EventQueueName:
+      Description: Producer 1 Event Queue ARN
+      Value:
+        Fn::GetAtt: [Producer1EventQueue, QueueName]
+      Export:
+        Name: ${self:custom.serviceExportPrefix}-Event1QueueName

@@ -1,0 +1,36 @@
+type ToDo {
+  createdAt: AWSDateTime
+  id: ID
+  updatedAt: AWSDateTime
+  description: String!
+  completed: Boolean
+  dueDate: AWSDateTime!
+}
+
+input ToDoCreateInput {
+  description: String!
+  dueDate: AWSDateTime!
+}
+
+input ToDoUpdateInput {
+  id: ID!
+  description: String
+  dueDate: AWSDateTime
+  completed: Boolean
+}
+
+type Mutation {
+  createTodo(input: ToDoCreateInput): ToDo
+  updateTodo(input: ToDoUpdateInput): ToDo
+  deleteTodo(id: ID!): ToDo
+}
+
+type Query {
+  listToDos: [ToDo!]
+  getToDo(id: ID): ToDo
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+}
