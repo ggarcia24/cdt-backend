@@ -29,9 +29,34 @@ provider:
         - "arn:aws:dynamodb:${self:provider.region}:*:*"
 
 plugins:
+  - serverless-dynamodb-local
+  - serverless-appsync-simulator
+  - serverless-offline
   - serverless-appsync-plugin
 
 custom:
+  appsync-simulator:
+    port: 8081
+    # refMap:
+    #   # Override `MyDbTable` resolution from the previous example.
+    #   MyDbTable: "mock-myTable"
+    # getAttMap:
+    #   # define ElasticSearchInstance DomainName
+    #   ElasticSearchInstance:
+    #     DomainEndpoint: "localhost:9200"
+    importValueMap:
+      - key: ${self:custom.serviceExportPrefix}-TodoTableName
+        value: LocalDynamoTable
+    # dynamoDb:
+    #   endpoint:
+  dynamodb:
+    stages:
+      - local
+    start:
+      inMemory: true
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true
   serviceExportPrefix: backend-${self:provider.stage}
   dynamoDbTableName:
     Fn::ImportValue: ${self:custom.serviceExportPrefix}-TodoTableName
@@ -75,11 +100,25 @@ custom:
         field: listToDos
         request: "list_todos.vtl"
         response: "common-items-response.vtl"
-# functions:
-#   graphql:
-#     handler: handler.graphqlHandler
-#     events:
-#       - http:
-#           path: graphql
-#           method: post
-#           cors: true
+
+resources:
+  Conditions:
+    isLocalEnvironment:
+      Fn::Equals:
+        - ${self:provider.stage}
+        - local
+  Resources:
+    LocalDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Condition: isLocalEnvironment
+      Properties:
+        TableName: LocalDynamoTable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
