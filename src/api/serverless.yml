@@ -108,6 +108,8 @@ resources:
         - ${self:provider.stage}
         - local
   Resources:
+    # Unfortunately because of the way that serverless-dynamodb-local works it needs a resource defined
+    # but in our case those resources are defined in another stack, which creates the need for this reference
     LocalDynamoTable:
       Type: AWS::DynamoDB::Table
       Condition: isLocalEnvironment

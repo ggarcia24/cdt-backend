@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "test": "jest",
+    "test:pact:publish": "cross-env pact-broker publish test/contract --consumer-app-version=\"$(npx @pact-foundation/absolute-version)\" --tag-with-git-branch --broker-base-url=http://localhost:9292"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@pact-foundation/absolute-version": "0.0.4",
+    "@pact-foundation/pact": "^9.17.0",
+    "cross-env": "^7.0.3",
+    "jest": "^27.3.1",
+    "jest-pact": "^0.9.1",
+    "serverless": "^2.67.0"
+  }
+}

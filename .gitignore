@@ -1,2 +1,4 @@
 node_modules
-src/api/.dynamodb
+.serverless
+.dynamodb
+src/processor-1/test/contract
